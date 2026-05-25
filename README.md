@@ -1,4 +1,5 @@
-[index.html](https://github.com/user-attachments/files/28227964/index.html)
+[index.html](https://github.com/user-attachments/files/28228172/index.html)
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -156,7 +157,7 @@
     async function fetchLatestData(datastreamId) {
         try {
             const token = generateToken();
-            const url = `https://cors-anywhere.herokuapp.com/https://api.heclouds.com/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+            const url = `https://api.heclouds.com/device/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
             const response = await fetch(url, {
                 method: 'GET',
                 headers: { 'Authorization': token, 'Content-Type': 'application/json' }
