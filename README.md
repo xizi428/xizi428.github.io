@@ -1,11 +1,13 @@
-[index.html](https://github.com/user-attachments/files/28228763/index.html)
+[index.html](https://github.com/user-attachments/files/28228987/index.html)
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>智能婴儿监护系统</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- OneNET 官方 SDK -->
+    <script src="https://open.iot.10086.cn/developer/sdk/javascript/sdk.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -130,140 +132,137 @@
 <script>
     // ==================== OneNET 配置 - 请修改这里 ====================
     const PRODUCT_ID = "2S7uZdUY68";           // 产品ID
-    const DEVICE_NAME = "stm32_baby_cot";      // 设备名称
-    const DEVICE_KEY = "TUZNWTBwcEppa2NqWmFJTDdqb1JIc2FVQXlpQUlYUGM="; 
-    const DEVICE_ID = "2593164154";              
+    const DEVICE_NAME = "stm32_baby_cot";      // 设备名称  
+    const ACCESS_KEY = "TUZNWTBwcEppa2NqWmFJTDdqb1JIc2FVQXlpQUlYUGM="; // 【请修改】完整的设备密钥
     // ================================================================
 
     let currentMode = 0;
     let deviceState = { fan: false, heater: false, crib: false, music: false };
     let lastData = {};
     let pollInterval = null;
+    let onenetClient = null;
 
-    // 生成 Token
-    function generateToken() {
-        const version = '2018-10-31';
-        const resource = `products/${PRODUCT_ID}/devices/${DEVICE_NAME}`;
-        const expirationTime = Math.floor(Date.now() / 1000) + 3600;
-        const method = 'sha1';
-        const signString = `${expirationTime}\n${method}\n${resource}\n${version}`;
-        const key = CryptoJS.enc.Base64.parse(DEVICE_KEY);
-        const sign = CryptoJS.HmacSHA1(signString, key).toString(CryptoJS.enc.Base64);
-        return `version=${version}&res=${encodeURIComponent(resource)}&et=${expirationTime}&method=${method}&sign=${encodeURIComponent(sign)}`;
-    }
-
-    // 获取单个数据流
-    async function fetchLatestData(datastreamId) {
+    // ==================== 初始化 OneNET SDK ====================
+    function initOneNET() {
         try {
-            const token = generateToken();
-            const url = `https://api.heclouds.com/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { 
-                    'Authorization': token,
-                    'Content-Type': 'application/json'
-                }
+            onenetClient = new OneNetClient({
+                productId: PRODUCT_ID,
+                deviceName: DEVICE_NAME,
+                accessKey: ACCESS_KEY
             });
-            
-            if (!response.ok) return null;
-            
-            const result = await response.json();
-            
-            // 打印原始响应，方便调试
-            console.log(`${datastreamId} 响应:`, result);
-            
-            // 解析 OneNET 返回的数据结构
-            // 标准响应格式: { data: { datastreams: [{ datapoints: [{ value: xxx }] }] } }
-            if (result && result.data && result.data.datastreams && result.data.datastreams[0]) {
-                const points = result.data.datastreams[0].datapoints;
-                if (points && points.length > 0) {
-                    let value = points[0].value;
-                    
-                    // 如果你的数据格式是 {"value": 25}，需要再解一层
-                    if (value && typeof value === 'object' && value.value !== undefined) {
-                        value = value.value;
-                    }
-                    
-                    return value;
-                }
-            }
-            return null;
-        } catch (e) {
-            console.error(`获取${datastreamId}失败:`, e.message);
-            return null;
-        }
-    }
-
-    // 获取所有数据
-    async function fetchAllData() {
-        try {
-            const [temp, humi, bodyTemp, rain, voice, strike] = await Promise.all([
-                fetchLatestData('temperature'),
-                fetchLatestData('humidity'),
-                fetchLatestData('obj_temp'),
-                fetchLatestData('rain'),
-                fetchLatestData('voice'),
-                fetchLatestData('strike')
-            ]);
-            
-            const data = {
-                temperature: temp,
-                humidity: humi,
-                obj_temp: bodyTemp,
-                rain: rain === 1 || rain === "1",
-                voice: voice === 1 || voice === "1",
-                strike: strike === 1 || strike === "1"
-            };
-            
-            updateDisplay(data);
-            lastData = data;
-            document.getElementById('connStatus').className = 'status online';
-            document.getElementById('connStatus').textContent = '🟢 在线';
-        } catch (error) {
-            console.error('获取数据失败:', error);
-            document.getElementById('connStatus').className = 'status offline';
-            document.getElementById('connStatus').textContent = '🔴 离线';
-        }
-    }
-
-    // 下发命令
-    async function sendCommand(commandData) {
-        try {
-            const token = generateToken();
-            const url = `https://api.heclouds.com/cmds?device_id=${DEVICE_ID}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Authorization': token, 'Content-Type': 'application/json' },
-                body: JSON.stringify(commandData)
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            console.log('OneNET SDK 初始化成功');
+            addLog('SDK 初始化成功', 'info');
             return true;
-        } catch (e) {
-            console.error('命令下发失败:', e.message);
-            addLog(`命令下发失败: ${e.message}`, 'danger');
+        } catch (error) {
+            console.error('SDK 初始化失败:', error);
+            addLog('SDK 初始化失败: ' + error.message, 'danger');
             return false;
         }
     }
 
+    // ==================== 获取设备数据 ====================
+    async function fetchDeviceData() {
+        if (!onenetClient) {
+            console.error('SDK 未初始化');
+            return;
+        }
+
+        try {
+            // 批量获取设备属性
+            const result = await onenetClient.getProperty([
+                'temperature', 
+                'humidity', 
+                'obj_temp', 
+                'rain', 
+                'voice', 
+                'strike'
+            ]);
+            
+            console.log('获取到的设备数据:', result);
+            
+            // 解析 SDK 返回的数据（注意 SDK 返回的格式可能需要根据实际情况调整）
+            const data = {
+                temperature: result.temperature?.value || result.temperature,
+                humidity: result.humidity?.value || result.humidity,
+                obj_temp: result.obj_temp?.value || result.obj_temp,
+                rain: result.rain?.value === 1 || result.rain === 1,
+                voice: result.voice?.value === 1 || result.voice === 1,
+                strike: result.strike?.value === 1 || result.strike === 1
+            };
+            
+            updateDisplay(data);
+            lastData = data;
+            
+            // 更新在线状态
+            document.getElementById('connStatus').className = 'status online';
+            document.getElementById('connStatus').textContent = '🟢 在线';
+            
+        } catch (error) {
+            console.error('获取设备数据失败:', error);
+            document.getElementById('connStatus').className = 'status offline';
+            document.getElementById('connStatus').textContent = '🔴 离线';
+            addLog(`获取数据失败: ${error.message}`, 'danger');
+        }
+    }
+
+    // ==================== 下发控制命令 ====================
+    async function sendCommand(commandData) {
+        if (!onenetClient) {
+            alert('SDK 未就绪');
+            return false;
+        }
+
+        try {
+            // 使用 SDK 设置设备属性
+            const result = await onenetClient.setProperty(commandData);
+            console.log('命令下发成功:', result);
+            addLog(`命令已发送: ${JSON.stringify(commandData)}`, 'info');
+            return true;
+        } catch (error) {
+            console.error('命令下发失败:', error);
+            addLog(`命令下发失败: ${error.message}`, 'danger');
+            return false;
+        }
+    }
+
+    // ==================== 模式切换 ====================
     function setMode(mode) {
         currentMode = mode;
-        document.querySelectorAll('.mode-btn').forEach((btn, i) => btn.classList.toggle('active', i === mode));
-        document.getElementById('manualPanel').style.display = mode === 1 ? 'block' : 'none';
-        document.getElementById('thresholdPanel').style.display = mode === 2 ? 'block' : 'none';
+        document.querySelectorAll('.mode-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i === mode);
+        });
+        const manualPanel = document.getElementById('manualPanel');
+        const thresholdPanel = document.getElementById('thresholdPanel');
+        if (manualPanel) manualPanel.style.display = mode === 1 ? 'block' : 'none';
+        if (thresholdPanel) thresholdPanel.style.display = mode === 2 ? 'block' : 'none';
         addLog(`切换至 ${['自动模式', '手动模式', '设置模式'][mode]}`, 'info');
         sendCommand({ mode: mode });
     }
 
+    // ==================== 开关控制 ====================
     function toggleSwitch(device) {
-        if (currentMode !== 1) { alert('请先切换至手动模式'); return; }
+        if (currentMode !== 1) {
+            alert('请先切换至手动模式');
+            return;
+        }
         deviceState[device] = !deviceState[device];
-        const ids = { fan: 'swFan', heater: 'swHeater', crib: 'swCrib', music: 'swMusic' };
-        document.getElementById(ids[device]).classList.toggle('on', deviceState[device]);
-        sendCommand({ [device]: deviceState[device] });
+        updateSwitchUI(device);
+        
+        // 发送开关命令
+        const command = {};
+        command[device] = deviceState[device];
+        sendCommand(command);
+        
         addLog(`手动${deviceState[device] ? '开启' : '关闭'} ${device}`, 'warning');
     }
 
+    function updateSwitchUI(device) {
+        const ids = { fan: 'swFan', heater: 'swHeater', crib: 'swCrib', music: 'swMusic' };
+        const el = document.getElementById(ids[device]);
+        if (el) el.classList.toggle('on', deviceState[device]);
+    }
+
+    // ==================== 阈值设置 ====================
     function updateThr() {
         document.getElementById('thrTempHVal').innerHTML = document.getElementById('thrTempH').value + '°C';
         document.getElementById('thrTempLVal').innerHTML = document.getElementById('thrTempL').value + '°C';
@@ -281,6 +280,7 @@
         alert('阈值已保存 ✅');
     }
 
+    // ==================== 日志 ====================
     function addLog(msg, type) {
         const now = new Date();
         const time = now.toLocaleTimeString('zh-CN');
@@ -292,29 +292,50 @@
         if (logPanel.children.length > 50) logPanel.removeChild(logPanel.lastChild);
     }
 
+    // ==================== 更新界面显示 ====================
     function updateDisplay(data) {
-        document.getElementById('vTemp').textContent = data.temperature ?? '--';
-        document.getElementById('vHumi').textContent = data.humidity ?? '--';
-        document.getElementById('vBody').textContent = data.obj_temp ?? '--';
+        // 更新数值
+        document.getElementById('vTemp').textContent = data.temperature !== null && data.temperature !== undefined ? data.temperature : '--';
+        document.getElementById('vHumi').textContent = data.humidity !== null && data.humidity !== undefined ? data.humidity : '--';
+        document.getElementById('vBody').textContent = data.obj_temp !== null && data.obj_temp !== undefined ? data.obj_temp : '--';
         document.getElementById('vRain').textContent = data.rain ? '⚠️ 是' : '✅ 否';
         document.getElementById('vVoice').textContent = data.voice ? '🔊 哭闹' : '🔇 安静';
         document.getElementById('vStrike').textContent = data.strike ? '💥 撞击' : '✅ 安全';
         
+        // 告警样式
         document.getElementById('cardTemp').classList.toggle('alert', (data.temperature || 0) > 35);
         document.getElementById('cardBody').classList.toggle('alert', (data.obj_temp || 0) > 37.5);
         document.getElementById('cardRain').classList.toggle('alert', data.rain);
         document.getElementById('cardVoice').classList.toggle('alert', data.voice);
         document.getElementById('cardStrike').classList.toggle('alert', data.strike);
         
+        // 事件日志
         if (data.voice && !lastData.voice) addLog('🔊 检测到婴儿啼哭', 'warning');
         if (data.rain && !lastData.rain) addLog('🚼 检测到尿床', 'danger');
         if (data.strike && !lastData.strike) addLog('💥 检测到撞击', 'danger');
     }
 
-    updateThr();
-    fetchAllData();
-    pollInterval = setInterval(fetchAllData, 3000);
-    addLog('系统初始化完成（HTTP API + Token鉴权）', 'info');
+    // ==================== 初始化页面 ====================
+    async function init() {
+        updateThr();
+        
+        // 初始化 OneNET SDK
+        const sdkReady = initOneNET();
+        
+        if (sdkReady) {
+            // 等待1秒让SDK完全初始化
+            setTimeout(() => {
+                fetchDeviceData();
+                // 每3秒轮询一次数据
+                pollInterval = setInterval(fetchDeviceData, 3000);
+            }, 1000);
+        }
+        
+        addLog('系统初始化完成（OneNET SDK 版本）', 'info');
+    }
+
+    // 启动应用
+    init();
 </script>
 </body>
 </html>
