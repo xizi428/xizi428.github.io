@@ -1,5 +1,4 @@
-[index.html](https://github.com/user-attachments/files/28228172/index.html)
-
+[index.html](https://github.com/user-attachments/files/28228763/index.html)
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -157,14 +156,39 @@
     async function fetchLatestData(datastreamId) {
         try {
             const token = generateToken();
-            const url = `https://api.heclouds.com/device/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+            const url = `https://api.heclouds.com/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+            
             const response = await fetch(url, {
                 method: 'GET',
-                headers: { 'Authorization': token, 'Content-Type': 'application/json' }
+                headers: { 
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                }
             });
+            
             if (!response.ok) return null;
+            
             const result = await response.json();
-            return result.data?.datastreams?.[0]?.datapoints?.[0]?.value ?? null;
+            
+            // 打印原始响应，方便调试
+            console.log(`${datastreamId} 响应:`, result);
+            
+            // 解析 OneNET 返回的数据结构
+            // 标准响应格式: { data: { datastreams: [{ datapoints: [{ value: xxx }] }] } }
+            if (result && result.data && result.data.datastreams && result.data.datastreams[0]) {
+                const points = result.data.datastreams[0].datapoints;
+                if (points && points.length > 0) {
+                    let value = points[0].value;
+                    
+                    // 如果你的数据格式是 {"value": 25}，需要再解一层
+                    if (value && typeof value === 'object' && value.value !== undefined) {
+                        value = value.value;
+                    }
+                    
+                    return value;
+                }
+            }
+            return null;
         } catch (e) {
             console.error(`获取${datastreamId}失败:`, e.message);
             return null;
