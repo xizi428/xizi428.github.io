@@ -116,9 +116,10 @@ function generateToken() {
 async function fetchLatestData(datastreamId) {
     try {
         const token = generateToken();
-        // 使用 cors-anywhere 代理
-        const proxyUrl = 'https://cors-proxy.htmldriven.com/?url=';
+        // 1. 使用新的代理 allorigins.win
+        const proxyUrl = 'https://api.allorigins.win/get?url=';
         const targetUrl = `${API_BASE}/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+        // 2. 拼接代理地址和需要编码的目标地址
         const url = proxyUrl + encodeURIComponent(targetUrl);
         
         console.log(`请求URL: ${url}`);
@@ -136,18 +137,27 @@ async function fetchLatestData(datastreamId) {
             return null;
         }
         
+        // 3. 关键步骤：allorigins.win 返回的数据在 contents 字段里，需要再解析一次
         const result = await response.json();
-        console.log(`${datastreamId} 原始返回:`, result);
+        console.log(`${datastreamId} 代理返回:`, result);
         
-        if (result && result.data && result.data.datastreams && result.data.datastreams[0]) {
-            const points = result.data.datastreams[0].datapoints;
-            if (points && points.length > 0) {
-                let value = points[0].value;
-                // 适配您的 {"value": 25} 格式
-                if (value && typeof value === 'object' && value.value !== undefined) {
-                    value = value.value;
+        // 检查代理是否成功获取到内容
+        if (result && result.contents) {
+            // 解析 contents 字段里的真实 API 响应
+            const apiResult = JSON.parse(result.contents);
+            console.log(`${datastreamId} API原始返回:`, apiResult);
+            
+            // 按照 OneNET 的标准格式提取数值
+            if (apiResult && apiResult.data && apiResult.data.datastreams && apiResult.data.datastreams[0]) {
+                const points = apiResult.data.datastreams[0].datapoints;
+                if (points && points.length > 0) {
+                    let value = points[0].value;
+                    // 适配您的 {"value": 25} 格式
+                    if (value && typeof value === 'object' && value.value !== undefined) {
+                        value = value.value;
+                    }
+                    return value;
                 }
-                return value;
             }
         }
         return null;
@@ -184,10 +194,16 @@ async function fetchAllData() {
 async function sendCommand(commandData) {
     try {
         const token = generateToken();
-        const proxyUrl = 'https://cors-proxy.htmldriven.com/?url=';
+        const proxyUrl = 'https://api.allorigins.win/get?url=';
         const targetUrl = `${API_BASE}/cmds?device_id=${DEVICE_ID}`;
         const url = proxyUrl + encodeURIComponent(targetUrl);
         
+        // 注意：allorigins.win 是 GET 代理，通常不支持 POST。
+        // 如果您需要双向控制，这个代理可能不行。我们先专注于获取数据显示。
+        console.warn('命令下发暂未适配此代理');
+        return false;
+        // 以下是原下发代码，暂时禁用避免出错
+        /*
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Authorization': token, 'Content-Type': 'application/json' },
@@ -195,6 +211,7 @@ async function sendCommand(commandData) {
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return true;
+        */
     } catch (e) {
         console.error('命令下发失败:', e.message);
         addLog(`命令下发失败: ${e.message}`, 'danger');
