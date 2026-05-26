@@ -1,87 +1,51 @@
-[index.html](https://github.com/user-attachments/files/28245505/index.html)
-
+[index.html](https://github.com/user-attachments/files/28245781/index.html)
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>智能婴儿监护系统</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- 重要：现在引用你自己仓库里的库文件 -->
+    <script src="crypto-js.min.js"></script>
     <style>
+        /* ---------- 你的样式代码保持不变，为了节省篇幅这里省略，请复制你原本的完整样式 ---------- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #e8f4f8 0%, #f0e6ff 50%, #ffe6f0 100%);
-            min-height: 100vh; padding: 12px; display: flex; flex-direction: column; align-items: center;
-        }
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: linear-gradient(135deg, #e8f4f8 0%, #f0e6ff 50%, #ffe6f0 100%); min-height: 100vh; padding: 12px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px; }
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 14px; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
         .logo { font-size: 1.1rem; font-weight: 700; color: #1a1a2e; display: flex; align-items: center; gap: 6px; }
         .logo span { font-size: 1.4rem; }
         .status { font-size: 0.75rem; font-weight: 600; padding: 4px 12px; border-radius: 12px; }
         .status.online { background: #e8f5e9; color: #27ae60; }
         .status.offline { background: #fbe9e7; color: #e94560; }
-        .mode-bar {
-            display: flex; gap: 0; background: #fff; border-radius: 16px;
-            overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-        .mode-btn {
-            flex: 1; padding: 12px 0; text-align: center; font-size: 0.85rem;
-            font-weight: 600; border: none; background: transparent; color: #888;
-            cursor: pointer; transition: 0.2s;
-        }
+        .mode-bar { display: flex; gap: 0; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .mode-btn { flex: 1; padding: 12px 0; text-align: center; font-size: 0.85rem; font-weight: 600; border: none; background: transparent; color: #888; cursor: pointer; transition: 0.2s; }
         .mode-btn.active { background: #6c5ce7; color: #fff; border-radius: 16px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .card {
-            background: #fff; border-radius: 16px; padding: 14px 10px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.04); text-align: center;
-        }
+        .card { background: #fff; border-radius: 16px; padding: 14px 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); text-align: center; }
         .card .icon { font-size: 1.5rem; margin-bottom: 2px; }
         .card .label { font-size: 0.7rem; color: #888; margin-bottom: 2px; }
         .card .value { font-size: 1.3rem; font-weight: 700; color: #1a1a2e; }
         .card .unit { font-size: 0.7rem; color: #aaa; }
         .card.alert { border: 2px solid #e94560; animation: shake 0.5s; }
         @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
-        .switch-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 14px 16px; background: #fff; border-radius: 16px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        }
+        .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
         .switch-row .label { font-weight: 600; font-size: 0.9rem; }
-        .switch {
-            width: 52px; height: 28px; background: #ddd; border-radius: 28px;
-            position: relative; cursor: pointer; transition: 0.3s;
-        }
+        .switch { width: 52px; height: 28px; background: #ddd; border-radius: 28px; position: relative; cursor: pointer; transition: 0.3s; }
         .switch.on { background: #27ae60; }
-        .switch::after {
-            content: ''; width: 24px; height: 24px; background: #fff; border-radius: 50%;
-            position: absolute; top: 2px; left: 2px; transition: 0.3s;
-        }
+        .switch::after { content: ''; width: 24px; height: 24px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: 0.3s; }
         .switch.on::after { left: 26px; }
-        .threshold-panel {
-            background: #fff; border-radius: 16px; padding: 14px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        }
+        .threshold-panel { background: #fff; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
         .threshold-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
         .threshold-item input[type="range"] { width: 120px; accent-color: #6c5ce7; }
         .threshold-item .val { font-weight: 600; min-width: 40px; text-align: right; }
-        .log-panel {
-            background: #fff; border-radius: 16px; padding: 12px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.04); max-height: 160px; overflow-y: auto;
-        }
+        .log-panel { background: #fff; border-radius: 16px; padding: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); max-height: 160px; overflow-y: auto; }
         .log-item { font-size: 0.75rem; padding: 4px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 8px; }
         .log-item .time { color: #aaa; white-space: nowrap; }
         .log-item.danger { color: #e94560; }
         .log-item.warning { color: #f39c12; }
         .log-item.info { color: #3498db; }
-        .btn-primary {
-            background: #6c5ce7; color: #fff; border: none; padding: 12px;
-            border-radius: 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
-            width: 100%;
-        }
+        .btn-primary { background: #6c5ce7; color: #fff; border: none; padding: 12px; border-radius: 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer; width: 100%; }
         .footer { text-align: center; font-size: 0.65rem; color: #bbb; margin-top: 4px; }
     </style>
 </head>
@@ -91,13 +55,11 @@
         <div class="logo"><span>👶</span> 婴儿监护</div>
         <div class="status" id="connStatus">连接中</div>
     </div>
-
     <div class="mode-bar">
         <button class="mode-btn active" onclick="setMode(0)">🤖 自动</button>
         <button class="mode-btn" onclick="setMode(1)">🎮 手动</button>
         <button class="mode-btn" onclick="setMode(2)">⚙ 设置</button>
     </div>
-
     <div class="grid">
         <div class="card" id="cardTemp"><div class="icon">🌡️</div><div class="label">环境温度</div><div class="value"><span id="vTemp">--</span><span class="unit">°C</span></div></div>
         <div class="card" id="cardHumi"><div class="icon">💧</div><div class="label">环境湿度</div><div class="value"><span id="vHumi">--</span><span class="unit">%</span></div></div>
@@ -106,32 +68,30 @@
         <div class="card" id="cardVoice"><div class="icon">📢</div><div class="label">啼哭检测</div><div class="value" id="vVoice">--</div></div>
         <div class="card" id="cardStrike"><div class="icon">⚠️</div><div class="label">撞击检测</div><div class="value" id="vStrike">--</div></div>
     </div>
-
     <div id="manualPanel" style="display:none;">
         <div class="switch-row"><span class="label">🌀 风扇</span><div class="switch" id="swFan" onclick="toggleSwitch('fan')"></div></div>
         <div class="switch-row"><span class="label">🔥 加热片</span><div class="switch" id="swHeater" onclick="toggleSwitch('heater')"></div></div>
         <div class="switch-row"><span class="label">🛏️ 摇床</span><div class="switch" id="swCrib" onclick="toggleSwitch('crib')"></div></div>
         <div class="switch-row"><span class="label">🎵 音乐</span><div class="switch" id="swMusic" onclick="toggleSwitch('music')"></div></div>
     </div>
-
     <div class="threshold-panel" id="thresholdPanel" style="display:none;">
         <div class="threshold-item"><label>温度上限</label><input type="range" id="thrTempH" min="15" max="50" value="35" oninput="updateThr()"><span class="val" id="thrTempHVal">35°C</span></div>
         <div class="threshold-item"><label>温度下限</label><input type="range" id="thrTempL" min="5" max="30" value="15" oninput="updateThr()"><span class="val" id="thrTempLVal">15°C</span></div>
         <div class="threshold-item"><label>湿度阈值</label><input type="range" id="thrHumi" min="20" max="90" value="60" oninput="updateThr()"><span class="val" id="thrHumiVal">60%</span></div>
         <button class="btn-primary" onclick="saveThreshold()">💾 保存阈值</button>
     </div>
-
     <div class="log-panel" id="logPanel">
         <div class="log-item info"><span class="time">--:--:--</span> 系统就绪，等待数据...</div>
     </div>
-
     <div class="footer">© 智能婴儿监护系统</div>
 </div>
 
 <script>
 // ==================== OneNET 配置 ====================
+// ！！！请确认这两个值是正确的！！！
 const DEVICE_ID = "2593164154";
 const ACCESS_KEY = "TUZNWTBwcEppa2NqWmFJTDdqb1JIc2FVQXlpQUlYUGM=";
+// =================================================
 const PRODUCT_ID = "2S7uZdUY68";
 const DEVICE_NAME = "stm32_baby_cot";
 const API_BASE = "https://api.heclouds.com";
@@ -141,7 +101,7 @@ let deviceState = { fan: false, heater: false, crib: false, music: false };
 let lastData = { voice: 0, rain: 0, strike: 0 };
 let pollInterval = null;
 
-// 生成 Token
+// 生成 Token (使用你本地仓库的 CryptoJS)
 function generateToken() {
     const version = '2018-10-31';
     const resource = `products/${PRODUCT_ID}/devices/${DEVICE_NAME}`;
@@ -153,16 +113,16 @@ function generateToken() {
     return `version=${version}&res=${encodeURIComponent(resource)}&et=${et}&method=${method}&sign=${encodeURIComponent(sign)}`;
 }
 
-// 获取数据流（使用 CORS 代理）
+// ==================== 使用新代理的获取数据函数 ====================
 async function fetchLatestData(datastreamId) {
     try {
         const token = generateToken();
-        // 使用 OneNET 官方 CORS 代理
-        const proxyUrl = 'https://cors.onenebula.com/api/';
-        const targetUrl = `https://api.heclouds.com/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+        // 使用 cors-anywhere 代理
+        const proxyUrl = 'https://xizi428.github.io/api/proxy.js?url=';
+        const targetUrl = `${API_BASE}/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
         const url = proxyUrl + targetUrl;
         
-        console.log(`请求URL: ${url}`); // 打印请求地址，方便调试
+        console.log(`请求URL: ${url}`);
         
         const response = await fetch(url, {
             method: 'GET',
@@ -221,11 +181,11 @@ async function fetchAllData() {
     }
 }
 
-// 下发命令
+// 下发命令 (也使用代理)
 async function sendCommand(commandData) {
     try {
         const token = generateToken();
-        const proxyUrl = 'https://cors.onenebula.com/api/';
+        const proxyUrl = 'https://xizi428.github.io/api/proxy.js?url=';
         const targetUrl = `${API_BASE}/cmds?device_id=${DEVICE_ID}`;
         const url = proxyUrl + targetUrl;
         
@@ -243,7 +203,7 @@ async function sendCommand(commandData) {
     }
 }
 
-// 更新界面
+// ==================== 以下函数无需修改 ====================
 function updateDisplay(data) {
     let temp = data.temperature, humi = data.humidity, body = data.obj_temp;
     let rain = data.rain, voice = data.voice, strike = data.strike;
@@ -322,10 +282,11 @@ function addLog(msg, type) {
     if (logPanel.children.length > 50) logPanel.removeChild(logPanel.lastChild);
 }
 
+// 初始化
 updateThr();
 fetchAllData();
 pollInterval = setInterval(fetchAllData, 3000);
-addLog('系统初始化完成（使用CORS代理）', 'info');
+addLog('系统初始化完成 (使用CORS代理)', 'info');
 </script>
 </body>
 </html>
