@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -118,7 +117,7 @@ async function fetchLatestData(datastreamId) {
     try {
         const token = generateToken();
         // 使用 cors-anywhere 代理
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const proxyUrl = 'https://cors-proxy.htmldriven.com/?url=';
         const targetUrl = `${API_BASE}/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
         const url = proxyUrl + encodeURIComponent(targetUrl);
         
@@ -185,7 +184,7 @@ async function fetchAllData() {
 async function sendCommand(commandData) {
     try {
         const token = generateToken();
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const proxyUrl = 'https://cors-proxy.htmldriven.com/?url=';
         const targetUrl = `${API_BASE}/cmds?device_id=${DEVICE_ID}`;
         const url = proxyUrl + encodeURIComponent(targetUrl);
         
