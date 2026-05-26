@@ -1,10 +1,9 @@
-[index.html](https://github.com/user-attachments/files/28229890/index.html)
-
+[index.html](https://github.com/user-attachments/files/28245056/index.html)
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>智能婴儿监护系统</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
@@ -130,10 +129,8 @@
 
 <script>
 // ==================== OneNET 配置 ====================
-// 请修改以下两个值为你的真实信息
-const DEVICE_ID = "2593164154";              // 设备ID（纯数字）
-const ACCESS_KEY = "TUZNWTBwcEppa2NqWmFJTDdqb1JIc2FVQXlpQUlYUGM=";  // 设备密钥
-
+const DEVICE_ID = "2593164154";
+const ACCESS_KEY = "TUZNWTBwcEppa2NqWmFJTDdqb1JIc2FVQXlpQUlYUGM=";
 const PRODUCT_ID = "2S7uZdUY68";
 const DEVICE_NAME = "stm32_baby_cot";
 const API_BASE = "https://api.heclouds.com";
@@ -143,23 +140,25 @@ let deviceState = { fan: false, heater: false, crib: false, music: false };
 let lastData = { voice: 0, rain: 0, strike: 0 };
 let pollInterval = null;
 
-// ==================== 生成 Token ====================
+// 生成 Token
 function generateToken() {
     const version = '2018-10-31';
     const resource = `products/${PRODUCT_ID}/devices/${DEVICE_NAME}`;
-    const expirationTime = Math.floor(Date.now() / 1000) + 3600;
+    const et = Math.floor(Date.now() / 1000) + 3600;
     const method = 'sha1';
-    const signString = `${expirationTime}\n${method}\n${resource}\n${version}`;
+    const signStr = `${et}\n${method}\n${resource}\n${version}`;
     const key = CryptoJS.enc.Base64.parse(ACCESS_KEY);
-    const sign = CryptoJS.HmacSHA1(signString, key).toString(CryptoJS.enc.Base64);
-    return `version=${version}&res=${encodeURIComponent(resource)}&et=${expirationTime}&method=${method}&sign=${encodeURIComponent(sign)}`;
+    const sign = CryptoJS.HmacSHA1(signStr, key).toString(CryptoJS.enc.Base64);
+    return `version=${version}&res=${encodeURIComponent(resource)}&et=${et}&method=${method}&sign=${encodeURIComponent(sign)}`;
 }
 
-// ==================== 获取单个数据流 ====================
+// 获取数据流（使用 CORS 代理）
 async function fetchLatestData(datastreamId) {
     try {
         const token = generateToken();
-        const url = `${API_BASE}/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const targetUrl = `${API_BASE}/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+        const url = proxyUrl + targetUrl;
         
         const response = await fetch(url, {
             method: 'GET',
@@ -177,7 +176,6 @@ async function fetchLatestData(datastreamId) {
             const points = result.data.datastreams[0].datapoints;
             if (points && points.length > 0) {
                 let value = points[0].value;
-                // 适配你的格式：{"value": 25}
                 if (value && typeof value === 'object' && value.value !== undefined) {
                     value = value.value;
                 }
@@ -191,7 +189,7 @@ async function fetchLatestData(datastreamId) {
     }
 }
 
-// ==================== 获取所有数据 ====================
+// 获取所有数据
 async function fetchAllData() {
     try {
         const [temp, humi, bodyTemp, rain, voice, strike] = await Promise.all([
@@ -203,15 +201,7 @@ async function fetchAllData() {
             fetchLatestData('strike')
         ]);
         
-        const data = {
-            temperature: temp,
-            humidity: humi,
-            obj_temp: bodyTemp,
-            rain: rain,
-            voice: voice,
-            strike: strike
-        };
-        
+        const data = { temperature: temp, humidity: humi, obj_temp: bodyTemp, rain: rain, voice: voice, strike: strike };
         updateDisplay(data);
         document.getElementById('connStatus').className = 'status online';
         document.getElementById('connStatus').textContent = '🟢 在线';
@@ -222,21 +212,19 @@ async function fetchAllData() {
     }
 }
 
-// ==================== 下发命令 ====================
+// 下发命令
 async function sendCommand(commandData) {
     try {
         const token = generateToken();
-        const url = `${API_BASE}/cmds?device_id=${DEVICE_ID}`;
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const targetUrl = `${API_BASE}/cmds?device_id=${DEVICE_ID}`;
+        const url = proxyUrl + targetUrl;
         
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Authorization': token,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': token, 'Content-Type': 'application/json' },
             body: JSON.stringify(commandData)
         });
-        
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return true;
     } catch (e) {
@@ -246,18 +234,11 @@ async function sendCommand(commandData) {
     }
 }
 
-// ==================== 更新界面显示（适配你的数据格式）====================
+// 更新界面
 function updateDisplay(data) {
-    // 直接取值，你的数据在 params 里，但 OneNET API 返回时已经展开
-    // 兼容多种格式：直接值 或 {"value": xxx}
-    let temp = data.temperature;
-    let humi = data.humidity;
-    let body = data.obj_temp;
-    let rain = data.rain;
-    let voice = data.voice;
-    let strike = data.strike;
+    let temp = data.temperature, humi = data.humidity, body = data.obj_temp;
+    let rain = data.rain, voice = data.voice, strike = data.strike;
     
-    // 如果是 {"value": 25} 格式，提取内部值
     if (temp && typeof temp === 'object') temp = temp.value;
     if (humi && typeof humi === 'object') humi = humi.value;
     if (body && typeof body === 'object') body = body.value;
@@ -265,7 +246,6 @@ function updateDisplay(data) {
     if (voice && typeof voice === 'object') voice = voice.value;
     if (strike && typeof strike === 'object') strike = strike.value;
     
-    // 更新显示
     document.getElementById('vTemp').textContent = temp ?? '--';
     document.getElementById('vHumi').textContent = humi ?? '--';
     document.getElementById('vBody').textContent = body ?? '--';
@@ -273,23 +253,19 @@ function updateDisplay(data) {
     document.getElementById('vVoice').textContent = (voice === 1 || voice === "1") ? '🔊 哭闹' : '🔇 安静';
     document.getElementById('vStrike').textContent = (strike === 1 || strike === "1") ? '💥 撞击' : '✅ 安全';
     
-    // 告警样式
     document.getElementById('cardTemp').classList.toggle('alert', (temp || 0) > 35);
     document.getElementById('cardBody').classList.toggle('alert', (body || 0) > 37.5);
     document.getElementById('cardRain').classList.toggle('alert', rain === 1);
     document.getElementById('cardVoice').classList.toggle('alert', voice === 1);
     document.getElementById('cardStrike').classList.toggle('alert', strike === 1);
     
-    // 事件日志
     if (voice === 1 && lastData.voice !== 1) addLog('🔊 检测到婴儿啼哭', 'warning');
     if (rain === 1 && lastData.rain !== 1) addLog('🚼 检测到尿床', 'danger');
     if (strike === 1 && lastData.strike !== 1) addLog('💥 检测到撞击', 'danger');
     
-    // 保存当前状态
     lastData = { voice: voice, rain: rain, strike: strike };
 }
 
-// ==================== 界面交互函数 ====================
 function setMode(mode) {
     currentMode = mode;
     document.querySelectorAll('.mode-btn').forEach((btn, i) => btn.classList.toggle('active', i === mode));
@@ -304,8 +280,7 @@ function toggleSwitch(device) {
     deviceState[device] = !deviceState[device];
     const ids = { fan: 'swFan', heater: 'swHeater', crib: 'swCrib', music: 'swMusic' };
     document.getElementById(ids[device]).classList.toggle('on', deviceState[device]);
-    const cmd = {};
-    cmd[device] = deviceState[device];
+    const cmd = {}; cmd[device] = deviceState[device];
     sendCommand(cmd);
     addLog(`手动${deviceState[device] ? '开启' : '关闭'} ${device}`, 'warning');
 }
@@ -338,11 +313,10 @@ function addLog(msg, type) {
     if (logPanel.children.length > 50) logPanel.removeChild(logPanel.lastChild);
 }
 
-// ==================== 初始化 ====================
 updateThr();
 fetchAllData();
 pollInterval = setInterval(fetchAllData, 3000);
-addLog('系统初始化完成（HTTP API）', 'info');
+addLog('系统初始化完成（使用CORS代理）', 'info');
 </script>
 </body>
 </html>
