@@ -1,4 +1,5 @@
-[index.html](https://github.com/user-attachments/files/28245056/index.html)
+[index.html](https://github.com/user-attachments/files/28245505/index.html)
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -156,9 +157,12 @@ function generateToken() {
 async function fetchLatestData(datastreamId) {
     try {
         const token = generateToken();
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-        const targetUrl = `${API_BASE}/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
+        // 使用 OneNET 官方 CORS 代理
+        const proxyUrl = 'https://cors.onenebula.com/api/';
+        const targetUrl = `https://api.heclouds.com/devices/${DEVICE_ID}/datastreams/${datastreamId}/datapoints?limit=1`;
         const url = proxyUrl + targetUrl;
+        
+        console.log(`请求URL: ${url}`); // 打印请求地址，方便调试
         
         const response = await fetch(url, {
             method: 'GET',
@@ -168,14 +172,19 @@ async function fetchLatestData(datastreamId) {
             }
         });
         
-        if (!response.ok) return null;
+        if (!response.ok) {
+            console.error(`HTTP ${response.status}: ${datastreamId}`);
+            return null;
+        }
         
         const result = await response.json();
+        console.log(`${datastreamId} 原始返回:`, result);
         
         if (result && result.data && result.data.datastreams && result.data.datastreams[0]) {
             const points = result.data.datastreams[0].datapoints;
             if (points && points.length > 0) {
                 let value = points[0].value;
+                // 适配您的 {"value": 25} 格式
                 if (value && typeof value === 'object' && value.value !== undefined) {
                     value = value.value;
                 }
@@ -216,7 +225,7 @@ async function fetchAllData() {
 async function sendCommand(commandData) {
     try {
         const token = generateToken();
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const proxyUrl = 'https://cors.onenebula.com/api/';
         const targetUrl = `${API_BASE}/cmds?device_id=${DEVICE_ID}`;
         const url = proxyUrl + targetUrl;
         
